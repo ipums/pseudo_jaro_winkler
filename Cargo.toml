@@ -1,0 +1,16 @@
+[package]
+name = "rlink"
+version = "0.1.0"
+authors = ["Jacob Wellington <jakew@umn.edu>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+parquet = "4.3.0"
+format-bytes = "0.2.2"
+bytelines = "2.2.2"
+eddie = "0.4.2"
+rayon = "1.0.1"
+csv = "1.1"
+indicatif = {version = "0.16.2", features = ["rayon"]}
