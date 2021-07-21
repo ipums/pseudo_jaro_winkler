@@ -1,5 +1,6 @@
 #![allow(unused_imports)]
 use format_bytes::format_bytes;
+use itertools::Itertools;
 use indicatif::{ProgressBar, ParallelProgressIterator, ProgressIterator};
 use std::io::Write;
 use std::process::exit;
@@ -19,48 +20,53 @@ use std::path::Path;
 use std::sync::{RwLock, Mutex};
 use std::error::Error;
 use std::fmt;
+use serde::{Serialize, Deserialize};
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 struct NameRec {
     histid: String,
     first_name: String,
     last_name: String,
-    bigrams: HashSet<String>
-}
-
-impl fmt::Display for NameRec {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{},{},{}", self.histid, self.first_name, self.last_name)
-    }
+    bigrams: String
 }
 
 fn main() {
-    let a_blocks = write_blocks(Path::new("./data/large/a_blocking/"), Path::new("./output/blocks_a"));
-    let b_blocks = write_blocks(Path::new("./data/large/b_blocking/"), Path::new("./output/blocks_b"));
-    /*File::create(output_file).unwrap();
-    let paths = fs::read_dir(input_dir).unwrap().flat_map(|entry| {
-        let entry = entry.unwrap();
-        let path = entry.path();
-        match path.extension() {
-            Some(ext) if ext == "csv" => {Some(path)},
-            _ => {None}
-        }
-    }).collect::<Vec<_>>();
-    a_blocks.par_iter().progress_count(a_blocks.len() as u64).fold(
-        || (OpenOptions::new().append(true).open(output_file).unwrap(), JaroWinkler::new()),
-        |(mut file, jw), (a_block, a_records)| {
-            if let Some(b_records) = b_blocks.get(a_block) {
-                for (a_rec, b_rec) in a_records.iter().zip(b_records) {
-                    let f_jw = jw.similarity(&a_rec.first_name, &b_rec.first_name);
-                    let l_jw = jw.similarity(&a_rec.last_name, &b_rec.last_name);
-                    if f_jw > 0.7 && l_jw > 0.7 {
-                        writeln!(file, "{},{},{},{}", a_rec, b_rec, f_jw, l_jw).unwrap();
+    let a_block_dir = Path::new("./output/blocks_a");
+    let b_block_dir = Path::new("./output/blocks_b");
+    write_blocks(Path::new("./data/large/a_blocking/"), a_block_dir);
+    write_blocks(Path::new("./data/large/b_blocking/"), b_block_dir);
+    let output_file = "output.csv";
+    File::create(output_file).unwrap();
+    let a_block_files = fs::read_dir(a_block_dir).unwrap().flat_map(|a| a).collect::<Vec<_>>();
+    let b_block_files = fs::read_dir(b_block_dir).unwrap().flat_map(|b| b).collect::<Vec<_>>();
+    a_block_files.par_iter().progress_count(a_block_files.len() as u64).fold(
+        || (csv::WriterBuilder::new().has_headers(false).from_writer(OpenOptions::new().append(true).open(output_file).unwrap()), JaroWinkler::new()),
+        |(mut wtr, jw), a_block_file| {
+            let matching_b_blocks = b_block_files.iter().filter(|b_block_file| { 
+                let a_name = a_block_file.file_name().into_string().unwrap();
+                let b_name = b_block_file.file_name().into_string().unwrap();
+                let (sex_a, bpl_a, birthyr_a, race_a) = a_name.split(',').next_tuple().unwrap();
+                let (sex_b, bpl_b, birthyr_b, race_b) = b_name.split(',').next_tuple().unwrap();
+                sex_a == sex_b && bpl_a == bpl_b && (birthyr_a.parse::<i32>().unwrap() - birthyr_b.parse::<i32>().unwrap()).abs() <= 3 && race_a == race_b 
+            });
+            for b_block_file in matching_b_blocks  {
+                let mut a_rdr = csv::Reader::from_path(a_block_file.path()).unwrap();
+                let mut b_rdr = csv::Reader::from_path(b_block_file.path()).unwrap();
+                println!("{:?}, {:?}", a_block_file, b_block_file);
+                for a_result in a_rdr.deserialize()  {
+                    let a_rec: NameRec = a_result.unwrap();
+                    for b_result in b_rdr.deserialize() {
+                        let b_rec: NameRec = b_result.unwrap();
+                        let f_jw = jw.similarity(&a_rec.first_name, &b_rec.first_name);
+                        let l_jw = jw.similarity(&a_rec.last_name, &b_rec.last_name);
+                        if f_jw > 0.7 && l_jw > 0.7 {
+                            wtr.serialize((&a_rec, &b_rec, f_jw, l_jw)).unwrap();
+                        }
                     }
                 }
             }
-            (file, jw)
+            (wtr, jw)
         }).collect::<Vec<_>>();
-    println!("Lengths: {} -- {}", a_blocks.len(), b_blocks.len());*/
     exit(1);
 }
 
@@ -70,8 +76,8 @@ fn main() {
     
 }*/
 
-fn write_blocks(input_dir: &Path, output_dir: &Path) {
-    if output_dir.exists() && false {
+fn write_blocks(input_dir:  &Path, output_dir: &Path) {
+    if output_dir.exists() {
         println!("Skipping creation of blocks: {:?}", output_dir);
     } else {
         remove_dir_all(output_dir);
@@ -95,10 +101,11 @@ fn write_blocks(input_dir: &Path, output_dir: &Path) {
         let blocks = blocks_lock.into_inner().unwrap();
         let num_blocks = blocks.len();
         blocks.into_par_iter().progress_count(num_blocks as u64).for_each(|(block, recs)| {
-            let mut output_file = File::create(output_dir.join(String::from_utf8(block.to_vec()).unwrap())).unwrap();
+            let mut wtr = csv::Writer::from_path(output_dir.join(String::from_utf8(block.to_vec()).unwrap())).unwrap();
             for rec in recs.into_inner().unwrap() {
-                writeln!(output_file, "{}", rec);
+                wtr.serialize(rec).unwrap();
             }
+            wtr.flush().unwrap();
         });
 
 
@@ -137,7 +144,7 @@ fn read_blocks_from_file(path: &Path, blocks_lock: &RwLock<HashMap<Vec<u8>, Mute
             histid: str::from_utf8(&record[0]).unwrap().to_string(),
             first_name: str::from_utf8(&record[1]).unwrap().to_string(),
             last_name: str::from_utf8(&record[2]).unwrap().to_string(),
-            bigrams: HashSet::from_iter(bigram_iter)
+            bigrams: str::from_utf8(&record[6]).unwrap().to_string()
         };
         let block_key = format_bytes!(b"{},{},{},{}", record[3], record[4], record[5], record[7]);
         let mut recs_lock: Option<Mutex<Vec<NameRec>>> = None;
