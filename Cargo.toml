@@ -10,7 +10,9 @@ edition = "2018"
 parquet = "4.3.0"
 format-bytes = "0.2.2"
 bytelines = "2.2.2"
-eddie = "0.4.2"
+eddie = {path = "../eddie"}
 rayon = "1.0.1"
 csv = "1.1"
+strsim = "0.10.0"
+serde = { version = "1.0", features = ["derive"] }
 indicatif = {version = "0.16.2", features = ["rayon"]}

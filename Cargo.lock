@@ -249,8 +249,6 @@ dependencies = [
 [[package]]
 name = "eddie"
 version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "12ad36183b190ad1632999a8735b9842f3fda7a5afa433d9132e80860ef7051a"
 
 [[package]]
 name = "either"
@@ -744,6 +742,8 @@ dependencies = [
  "indicatif",
  "parquet",
  "rayon",
+ "serde",
+ "strsim",
 ]
 
 [[package]]
@@ -763,6 +763,9 @@ name = "serde"
 version = "1.0.126"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec7505abeacaec74ae4778d9d9328fe5a5d04253220a85c4ee022239fc996d03"
+dependencies = [
+ "serde_derive",
+]
 
 [[package]]
 name = "serde_derive"
@@ -804,6 +807,12 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
+
+[[package]]
+name = "strsim"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "73473c0e59e6d5812c5dfe2a064a6444949f089e20eec9a2e5506596494e4623"
 
 [[package]]
 name = "syn"
