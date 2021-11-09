@@ -1,3 +1,4 @@
+#![allow(warnings, unused)]
 use std::cmp;
 use eddie::Jaro;
 use csv::Writer;
@@ -34,6 +35,11 @@ struct CandidateLetterInfo {
     mask: u16
 }
 
+struct LetterInfo {
+    len: usize,
+    mask: u16
+}
+
 #[derive(Debug)]
 struct CandidateScore {
     matches: u8,
@@ -62,7 +68,54 @@ fn build_candidate_lookup(names: &Vec<String>) -> Vec<Vec<CandidateLetterInfo>> 
     letter_lookup
 }
 
+fn build_candidate_list(names: &Vec<String>) -> Vec<(u8, Vec<u16>)> {
+    names.iter().map(|name| {
+        let masks = ('a'..'{').enumerate().map(|(letter_index, letter)| {
+            let mut mask : u16 = 0;
+            name.chars().positions(|c| c == letter).for_each(|matching_index_in_name| {
+                mask += u16::pow(2, matching_index_in_name as u32);
+            });
+            mask
+        }).collect();
+        (name.len() as u8, masks)
+    }).collect()
+}
+
 fn main() {
+    let candidate_names = csv::ReaderBuilder::new().has_headers(false).from_path("./input/prepped_df_a.csv").unwrap().deserialize().map(|rec| {
+        let rec: NameRec = rec.unwrap();
+        rec.first_name
+    }).filter(|name| name.len() > 0).collect::<Vec<String>>();
+    let candidate_list = build_candidate_list(&candidate_names);
+    let query = "ajke".to_owned();
+    let query_len = query.len();
+    println!("maskify");
+    let query_masks_lookup = maskify(&query);
+    println!("{:?}", candidate_list[0]);
+
+    let start = Instant::now();
+    let results = candidate_list.iter().flat_map(|(candidate_len, candidate_masks)| {
+        /*
+        let mut candidate_score = CandidateScore { matches: 0, used: 0, last_match_letter_index: 0, transposition_count: 0, len: *candidate_len };
+        for (letter_index, masks_by_len)  in query_masks_lookup.iter() {
+            let whole_mask_result = (masks_by_len[(*candidate_len - 1) as usize] & candidate_masks[*letter_index as usize]); // Get raw matches
+            let check_used_result = (whole_mask_result | candidate_score.used) ^ candidate_score.used; // Make sure we haven't used that match before
+            let last_match_letter_index = (1 << check_used_result.trailing_zeros()) & check_used_result; // Find the first match found
+            let mask_result = check_used_result & last_match_letter_index; // Take the first match found
+            candidate_score.used |= mask_result;
+            candidate_score.matches += (mask_result > 0) as u8;
+            candidate_score.transposition_count +=  (mask_result.wrapping_sub(1) < candidate_score.last_match_letter_index) as u8;
+            candidate_score.last_match_letter_index |= mask_result;
+        }*/
+        Some(CandidateScore { matches: 0, used: 0, last_match_letter_index: 0, transposition_count: 0, len: *candidate_len })
+    }).collect::<Vec<_>>();
+    let elapsed = start.elapsed();
+    println!("{} micro", elapsed.as_micros());
+
+    //let mut candidate_names = Vec::new();
+}
+
+fn main2() {
     let candidate_names = csv::ReaderBuilder::new().has_headers(false).from_path("./input/prepped_df_a.csv").unwrap().deserialize().map(|rec| {
         let rec: NameRec = rec.unwrap();
         rec.first_name
@@ -102,7 +155,7 @@ fn main() {
     let mut wtr = Writer::from_path("output.csv").unwrap();
     let query_len_u8 = query_len as u8;
     //candidate_scores.into_iter().zip(candidate_names).filter(|(score, name)| { score.matches > 0 }).map(|(score, name)| { 
-    let a = candidate_scores.into_iter().filter(|(score)| { 
+    /*let a = candidate_scores.into_iter().filter(|(score)| { 
         score.matches > 0 
             && score.matches as f32 >= 0.8 as f32 * ((3 * score.len * query_len_u8 - (score.len * query_len_u8)) as f32) / (score.len + query_len_u8) as f32
     }).map(|score| {
@@ -119,7 +172,7 @@ fn main() {
         //dbg!(name, &score); 
         //dbg!(jw, &jw_eddie);
         //(1.0 / 3.0) * ( score.matches as f32 / score.len as f32 + score.matches as f32 / query_len as f32 + (score.matches - score.transposition_count) as f32/ score.matches as f32)
-    }).collect::<Vec<_>>();
+    }).collect::<Vec<_>>();*/
     /*.map(|score| { 
         //let jw_eddie = jaro.similarity(&query, &name);
         let jw = (1.0 / 3.0) * ( score.matches as f32 / score.len as f32 + score.matches as f32 / query_len as f32 + (score.matches - score.transposition_count) as f32/ score.matches as f32);
