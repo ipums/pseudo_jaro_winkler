@@ -1,10 +1,11 @@
 use std::cmp;
+use eddie::Jaro;
+use csv::Writer;
 use serde::{Serialize, Deserialize};
 use std::time::Instant;
 use itertools::Itertools;
-use rayon::prelude::*;
 
-fn maskify(query: String) -> Vec<(u8, [u16; 16])> {
+fn maskify(query: &String) -> Vec<(u8, [u16; 16])> {
     let len = query.len();
     let min_match_dist = if len > 3 { len / 2 - 1 } else { 0 };
     query.chars().enumerate().map( |(i, c)| {
@@ -42,7 +43,7 @@ struct CandidateScore {
     transposition_count: u8
 }
 
-fn build_candidate_lookup(names: Vec<String>) -> Vec<Vec<CandidateLetterInfo>> {
+fn build_candidate_lookup(names: &Vec<String>) -> Vec<Vec<CandidateLetterInfo>> {
     let mut letter_lookup: Vec<Vec<CandidateLetterInfo>> = Vec::new();
     for (letter_index, letter) in ('a'..'{').enumerate() {
         let mut candidate_infos : Vec<CandidateLetterInfo> = Vec::new();
@@ -62,22 +63,22 @@ fn build_candidate_lookup(names: Vec<String>) -> Vec<Vec<CandidateLetterInfo>> {
 }
 
 fn main() {
-    /*let candidate_names = csv::ReaderBuilder::new().has_headers(false).from_path("./input/prepped_df_a.csv").unwrap().deserialize().map(|rec| {
+    let candidate_names = csv::ReaderBuilder::new().has_headers(false).from_path("./input/prepped_df_a.csv").unwrap().deserialize().map(|rec| {
         let rec: NameRec = rec.unwrap();
         rec.first_name
-    }).collect::<Vec<String>>();*/
+    }).collect::<Vec<String>>();
 
-    let mut candidate_names = Vec::new();
-    candidate_names.push("joaek".to_owned());
+    //let mut candidate_names = Vec::new();
+    //candidate_names.push("matthew".to_owned());
     let mut candidate_scores = candidate_names.iter().map(|name| {
         CandidateScore { matches: 0, used: 0, last_match_letter_index: 0, transposition_count: 0, len: name.len() as u8 }
     }).collect::<Vec<CandidateScore>>();
-    let candidate_lookup = build_candidate_lookup(candidate_names);
+    let candidate_lookup = build_candidate_lookup(&candidate_names);
 
-    let query = "jkeo".to_owned();
+    let query = "ajke".to_owned();
     let query_len = query.len();
     println!("maskify");
-    let query_masks_lookup = maskify(query);
+    let query_masks_lookup = maskify(&query);
 
     println!("{:?}", candidate_lookup[0].len());
 
@@ -90,17 +91,47 @@ fn main() {
             let last_match_letter_index = (1 << check_used_result.trailing_zeros()) & check_used_result; // Find the first match found
             let mask_result = check_used_result & last_match_letter_index; // Take the first match found
             candidate_score.used |= mask_result;
-
             candidate_score.matches += (mask_result > 0) as u8;
-            dbg!(mask_result, last_match_letter_index);
-            let last_match_letter_index =; // make these no ops on last_match_letter_index is 0
-            candidate_score.transposition_count +=  (last_match_letter_index < candidate_score.last_match_letter_index) as u8;
-            candidate_score.last_match_letter_index = last_match_letter_index;
+            candidate_score.transposition_count +=  (mask_result.wrapping_sub(1) < candidate_score.last_match_letter_index) as u8;
+            candidate_score.last_match_letter_index |= mask_result;
          });
     }
     println!("{:?}", candidate_scores[0]);
 
-    candidate_scores.into_iter().filter(|score| { score.matches > 0 }).take(1).for_each(|score| println!("num matches: {:?}", score.matches));
+    let jaro = Jaro::new();
+    let mut wtr = Writer::from_path("output.csv").unwrap();
+    let query_len_u8 = query_len as u8;
+    //candidate_scores.into_iter().zip(candidate_names).filter(|(score, name)| { score.matches > 0 }).map(|(score, name)| { 
+    let a = candidate_scores.into_iter().filter(|(score)| { 
+        score.matches > 0 
+            && score.matches as f32 >= 0.8 as f32 * ((3 * score.len * query_len_u8 - (score.len * query_len_u8)) as f32) / (score.len + query_len_u8) as f32
+    }).map(|score| {
+        //let jw_eddie = jaro.similarity(&query, &name);
+        let jw = (1.0 / 3.0) * ( score.matches as f32 / score.len as f32 + score.matches as f32 / query_len as f32 + (score.matches - score.transposition_count) as f32/ score.matches as f32);
+        //jw
+        //if (jw - jw_eddie as f32).abs() > 0.01 {
+        //    wtr.write_record(&[name, jw_eddie.to_string(), jw.to_string()]).unwrap();
+        //}
+        if jw >= 0.8 {
+            wtr.write_record(&[jw.to_string()]).unwrap();
+        }
+        jw
+        //dbg!(name, &score); 
+        //dbg!(jw, &jw_eddie);
+        //(1.0 / 3.0) * ( score.matches as f32 / score.len as f32 + score.matches as f32 / query_len as f32 + (score.matches - score.transposition_count) as f32/ score.matches as f32)
+    }).collect::<Vec<_>>();
+    /*.map(|score| { 
+        //let jw_eddie = jaro.similarity(&query, &name);
+        let jw = (1.0 / 3.0) * ( score.matches as f32 / score.len as f32 + score.matches as f32 / query_len as f32 + (score.matches - score.transposition_count) as f32/ score.matches as f32);
+        //let jw = 0.7;
+        jw
+        /*if (jw - jw_eddie as f32).abs() > 0.01 {
+            wtr.write_record(&[name, jw_eddie.to_string(), jw.to_string()]).unwrap();
+        }*/
+        //dbg!(name, &score); 
+        //dbg!(jw, &jw_eddie);
+
+    }).filter(|&jw| jw > 0.8).collect::<Vec<_>>();*/
     let elapsed = start.elapsed();
     println!("{} micro", elapsed.as_micros());
 }
