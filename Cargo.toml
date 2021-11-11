@@ -17,3 +17,4 @@ csv = "1.1"
 strsim = "0.10.0"
 rayon = "*"
 indicatif = { version = "*", features = ["rayon"] }
+packed_simd = { version = "0.3.6", package = "packed_simd_2" }

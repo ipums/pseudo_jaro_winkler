@@ -9,6 +9,7 @@ use rayon::prelude::*;
 use itertools::Itertools;
 use strsim::{jaro_winkler,jaro};
 use std::str::Chars;
+use packed_simd::u16x16 as u16s;
 
 fn maskify(query: &String) -> Vec<(u8, [u16; 16])> {
     let len = query.len();
@@ -55,7 +56,7 @@ struct CandidateScore {
     used_exact: u16,
     partial_jw: u16,
     last_match_letter_index: u16,
-    transposition_count: u8
+    transposition_count: u16
 }
 
 fn build_candidate_lookup(names: &Vec<String>) -> Vec<Vec<CandidateLetterInfo>> {
@@ -99,7 +100,7 @@ fn main() {
     let query_names = csv::ReaderBuilder::new().has_headers(false).from_path("./input/prepped_df_b.csv").unwrap().deserialize().map(|rec| {
         let rec: NameRec = rec.unwrap();
         rec.first_name
-    }).filter(|name| name.len() > 0).take(10000).collect::<Vec<String>>();
+    }).filter(|name| name.len() > 0).take(1000).collect::<Vec<String>>();
 
     //let mut candidate_names = Vec::new();
     //candidate_names.push("jane a k".to_owned());
@@ -120,25 +121,89 @@ fn main() {
         //println!("{:?}", candidate_lookup[0].len());
 
         for (query_index, (letter_index, query_mask_by_candidate_len)) in query_masks_lookup.iter().enumerate() {
-             candidate_lookup[*letter_index as usize].iter().for_each(|c_info| {
-                let candidate_score = &mut candidate_scores[c_info.name_index];
-                let query_mask = query_mask_by_candidate_len[c_info.len - 1];
-                let whole_mask_result = (query_mask & c_info.mask); // Get raw matches
-                let check_used_result = (whole_mask_result | candidate_score.used) ^ candidate_score.used; // Make sure we haven't used that match before
-                let last_match_letter_index = (1 << check_used_result.trailing_zeros()) & check_used_result; // Find the first match found
+            candidate_lookup[*letter_index as usize].chunks_exact(16).for_each(|c_infos| {
+
+                let c_info_masks = u16s::new(
+                    c_infos[0].mask,
+                    c_infos[1].mask,
+                    c_infos[2].mask,
+                    c_infos[3].mask,
+                    c_infos[4].mask,
+                    c_infos[5].mask,
+                    c_infos[6].mask,
+                    c_infos[7].mask,
+                    c_infos[8].mask,
+                    c_infos[9].mask,
+                    c_infos[10].mask,
+                    c_infos[11].mask,
+                    c_infos[12].mask,
+                    c_infos[13].mask,
+                    c_infos[14].mask,
+                    c_infos[15].mask
+                );
+
+                let query_masks = u16s::new(
+                    query_mask_by_candidate_len[c_infos[0].len - 1],
+                    query_mask_by_candidate_len[c_infos[1].len - 1],
+                    query_mask_by_candidate_len[c_infos[2].len - 1],
+                    query_mask_by_candidate_len[c_infos[3].len - 1],
+                    query_mask_by_candidate_len[c_infos[4].len - 1],
+                    query_mask_by_candidate_len[c_infos[5].len - 1],
+                    query_mask_by_candidate_len[c_infos[6].len - 1],
+                    query_mask_by_candidate_len[c_infos[7].len - 1],
+                    query_mask_by_candidate_len[c_infos[8].len - 1],
+                    query_mask_by_candidate_len[c_infos[9].len - 1],
+                    query_mask_by_candidate_len[c_infos[10].len - 1],
+                    query_mask_by_candidate_len[c_infos[11].len - 1],
+                    query_mask_by_candidate_len[c_infos[12].len - 1],
+                    query_mask_by_candidate_len[c_infos[13].len - 1],
+                    query_mask_by_candidate_len[c_infos[14].len - 1],
+                    query_mask_by_candidate_len[c_infos[15].len - 1]
+                );
+
+                let used = u16s::new(
+                    candidate_scores[c_infos[0].name_index].used,
+                    candidate_scores[c_infos[1].name_index].used,
+                    candidate_scores[c_infos[2].name_index].used,
+                    candidate_scores[c_infos[3].name_index].used,
+                    candidate_scores[c_infos[4].name_index].used,
+                    candidate_scores[c_infos[5].name_index].used,
+                    candidate_scores[c_infos[6].name_index].used,
+                    candidate_scores[c_infos[7].name_index].used,
+                    candidate_scores[c_infos[8].name_index].used,
+                    candidate_scores[c_infos[9].name_index].used,
+                    candidate_scores[c_infos[10].name_index].used,
+                    candidate_scores[c_infos[11].name_index].used,
+                    candidate_scores[c_infos[12].name_index].used,
+                    candidate_scores[c_infos[13].name_index].used,
+                    candidate_scores[c_infos[14].name_index].used,
+                    candidate_scores[c_infos[15].name_index].used
+                );
+
+                let whole_mask_result = (query_masks & c_info_masks);
+                let check_used_result = (whole_mask_result | used);
+
+
+
+                let check_used_result = (whole_mask_result | used) ^ used; // Make sure we haven't used that match before
+                let last_match_letter_index = (u16s::splat(1) << check_used_result.trailing_zeros()) & check_used_result; // Find the first match found
                 let mask_result = check_used_result & last_match_letter_index; // Take the first match found
                 let is_match_mask = !(((mask_result >> mask_result.trailing_zeros()) & 1) - 1); // All 1s if there is a result, else all 0s
-                candidate_score.used |= mask_result;
-                candidate_score.used_exact |= mask_result & (1 << query_index);
-                candidate_score.matches += is_match_mask & 1;
-                candidate_score.partial_jw += is_match_mask & candidate_score.increment;
-                candidate_score.partial_jw += is_match_mask & query_increment;
-                candidate_score.transposition_count +=  (mask_result - 1 < candidate_score.last_match_letter_index) as u8;
-                candidate_score.last_match_letter_index |= mask_result;
-                /*dbg!(&query_index);
-                dbg!(&letter_index);
-                dbg!(&candidate_score);*/
-             });
+
+
+                for i in 0..16 {
+                    let mask_result_i = mask_result.extract(i as usize);
+                    let is_match_mask_i = is_match_mask.extract(i as usize);
+                    let mut candidate_score = &mut candidate_scores[c_infos[i].name_index];
+                    candidate_score.used |= mask_result_i;
+                    candidate_score.used_exact |= mask_result_i & (1 << query_index);
+                    candidate_score.matches += is_match_mask_i & 1;
+                    candidate_score.partial_jw += is_match_mask_i & candidate_score.increment;
+                    candidate_score.partial_jw += is_match_mask_i & query_increment;
+                    candidate_score.transposition_count +=  (mask_result_i - 1 < candidate_score.last_match_letter_index) as u16;
+                    candidate_score.last_match_letter_index |= mask_result_i;
+                }
+            });
         }
         candidate_scores.into_iter().filter(|score| {
             let jaro_partial = ((score.partial_jw as f32 / 1000.0)  + 1.0 - (score.transposition_count as f32 / score.matches as f32)) / 3.0;
