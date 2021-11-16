@@ -17,3 +17,14 @@ csv = "1.1"
 strsim = "0.10.0"
 rayon = "*"
 indicatif = { version = "*", features = ["rayon"] }
+
+[dev-dependencies]
+criterion = { version = "0.3", features = ["html_reports"] }
+
+[[bench]]
+name = "rlink"
+harness = false
+
+[profile.test]
+opt-level=3
+overflow-checks = false
