@@ -18,6 +18,7 @@ strsim = "0.10.0"
 rayon = "*"
 indicatif = { version = "*", features = ["rayon"] }
 statistical = "*"
+clap = "2.33.3"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }

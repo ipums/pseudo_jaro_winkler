@@ -1,37 +1,45 @@
 use rlink::compare_batches;
-use std::path::PathBuf;
-use std::time::Instant;
-use serde::{Serialize, Deserialize};
+use std::{
+    fs::File,
+    path::PathBuf,
+    io::{BufRead, BufReader},
+    time::Instant
+};
+use clap::{Arg, App};
 
-
-#[derive(Serialize, Deserialize, Debug)]
-struct NameRec {
-    histid: String,
-    sex: String,
-    birthyr: String,
-    bpl: String,
-    namefrst_raw: String,
-    namelast_raw: String,
-    first_name: String,
-    last_name: String,
-}
 fn main() {
-    let candidate_names = csv::ReaderBuilder::new().has_headers(false).from_path("./tests/input/prepped_df_a.csv").unwrap().deserialize().map(|rec| {
-        let rec: NameRec = rec.unwrap();
-        rec.first_name
-    }).filter(|name| name.len() > 0).collect::<Vec<String>>();
+    let cli_matches = App::new("Rlink")
+        .version("0.1")
+        .author("Jacob Wellington <jakew@umn.edu>")
+        .about("Creates very fast jaro winkler scores between two datasets.")
+        .arg(Arg::with_name("file_a")
+            .help("First file to link. Must be a file where each row is a name.")
+            .required(true)
+            .index(1))
+        .arg(Arg::with_name("file_b")
+            .help("Second file to link. Must be a file where each row is a name.")
+            .required(true)
+            .index(2))
+        .arg(Arg::with_name("output_dir")
+            .help("Directory to put the output matches.")
+            .required(true)
+            .index(3))
+        .get_matches();
+    let file_a : &str = cli_matches.value_of("file_a").unwrap();
+    let file_b : &str = cli_matches.value_of("file_b").unwrap();
+    let names_a = BufReader::new(File::open(file_a).expect(&format!("Error opening file_a: {}", file_a))).lines().map(|n| n.unwrap()).collect::<Vec<String>>();
+    let names_b = BufReader::new(File::open(file_b).expect(&format!("Error opening file_b: {}", file_b))).lines().map(|n| n.unwrap()).collect::<Vec<String>>();
+    
+    names_a.iter().enumerate().for_each(|(i, name)| {
+        assert_ne!(name.len(), 0, "Error: file_a has blank line at line #: {}", i + 1);
+    });
+    names_b.iter().enumerate().for_each(|(i, name)| {
+        assert_ne!(name.len(), 0, "Error: file_b has blank line at line #: {}", i + 1);
+    });
 
-    let query_names = csv::ReaderBuilder::new().has_headers(false).from_path("./tests/input/prepped_df_b.csv").unwrap().deserialize().map(|rec| {
-        let rec: NameRec = rec.unwrap();
-        rec.first_name
-    }).filter(|name| name.len() > 0).collect::<Vec<String>>();
-
-    /*let mut candidate_names = Vec::new();
-    candidate_names.push("isabella e".to_owned());
-    let mut query_names = Vec::new();
-    query_names.push("nellie".to_owned());*/
+    let output_dir = cli_matches.value_of("output_dir").unwrap();
     let start = Instant::now();
-    compare_batches(PathBuf::from("./tests/output/"), &query_names, &candidate_names, 0.8);
+    compare_batches(PathBuf::from(output_dir), &names_a, &names_b, 0.8);
     let elapsed = start.elapsed();
     println!("{} ms", elapsed.as_millis());
 }

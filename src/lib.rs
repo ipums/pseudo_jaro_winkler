@@ -1,3 +1,5 @@
+//! Creates fast psuedo jaro winkler scores between two vectors of strings.
+
 #![allow(arithmetic_overflow)]
 use itertools::Itertools;
 use std::path::PathBuf;
@@ -9,20 +11,20 @@ use std::io::prelude::*;
 use std::fmt;
 
 #[derive(Debug, Clone)]
-pub struct CandidateLetterInfo {
-    pub name_index: usize,
-    pub len: usize,
-    pub mask: u16
+struct CandidateLetterInfo {
+    name_index: usize,
+    len: usize,
+    mask: u16
 }
 
 #[derive(Debug, Clone)]
-pub struct LetterInfo {
+struct LetterInfo {
     len: usize,
     mask: u16
 }
 
 #[derive(Clone)]
-pub struct CandidateScore {
+struct CandidateScore {
     matches: u8,
     increment: u16,
     used: u16,
@@ -45,12 +47,12 @@ impl fmt::Debug for CandidateScore {
 }
 
 impl CandidateScore {
-    pub fn new(increment: u16) -> CandidateScore{
+    fn new(increment: u16) -> CandidateScore{
         CandidateScore { matches: 0, used_exact: 0, partial_jw: 0, used: 0, transposition_count: 0, last_match_letter_index: 0, increment}
     }
 
     #[inline]
-    pub fn calculate_jaro_winkler(&self) -> f32 {
+    fn calculate_jaro_winkler(&self) -> f32 {
         let transpositions = if self.transposition_count > self.matches / 2 { self.transposition_count - 1 } else { self.transposition_count };
         let jaro_partial = ((self.partial_jw as f32 / 1000.0)  + 1.0 - (transpositions as f32 / self.matches as f32)) / 3.0;
         let l = (self.used_exact & 0b1111u16).trailing_ones() as f32;
@@ -58,7 +60,7 @@ impl CandidateScore {
     }
 }
 
-pub fn maskify(query: &String) -> Vec<(u8, [u16; 16])> {
+fn maskify(query: &String) -> Vec<(u8, [u16; 16])> {
     let len = query.len();
     let min_match_dist = if len > 3 { len / 2 - 1 } else { 0 };
     query.replace(" ", "`").chars().enumerate().map( |(i, c)| {
@@ -82,7 +84,7 @@ pub fn maskify(query: &String) -> Vec<(u8, [u16; 16])> {
     }).collect()
 }
 
-pub fn build_candidate_lookup(names: &Vec<String>) -> Vec<Vec<CandidateLetterInfo>> {
+fn build_candidate_lookup(names: &Vec<String>) -> Vec<Vec<CandidateLetterInfo>> {
     let mut letter_lookup: Vec<Vec<CandidateLetterInfo>> = Vec::new();
     for letter in '`'..'{' {
         let mut candidate_infos : Vec<CandidateLetterInfo> = Vec::new();
@@ -102,7 +104,7 @@ pub fn build_candidate_lookup(names: &Vec<String>) -> Vec<Vec<CandidateLetterInf
 }
 
 #[inline]
-pub fn score_letter(candidate_score: &mut CandidateScore, query_mask: u16, candidate_mask: u16, query_index: usize, query_increment: u16) {
+fn score_letter(candidate_score: &mut CandidateScore, query_mask: u16, candidate_mask: u16, query_index: usize, query_increment: u16) {
     let whole_mask_result = query_mask & candidate_mask; // Get raw matches
     let check_used_result = (whole_mask_result | candidate_score.used) ^ candidate_score.used; // Make sure we haven't used that match before
     let last_match_letter_index = (1 << check_used_result.trailing_zeros()) & check_used_result; // Find the first match found
@@ -117,14 +119,15 @@ pub fn score_letter(candidate_score: &mut CandidateScore, query_mask: u16, candi
     candidate_score.last_match_letter_index |= mask_result;
 }
 
+/// Compares two vectors of strings using the psuedo jaro winkler algorithm.
 #[inline]
-pub fn compare_batches(mut output_dir: PathBuf, query_names: &Vec<String>, candidate_names: &Vec<String>, min_jaro_winkler: f32) {
+pub fn psuedo_jaro_winkler(names_a: &Vec<String>, names_b: &Vec<String>, mut output_dir: PathBuf, min_jaro_winkler: f32) {
     create_dir_all(&mut output_dir).unwrap();
-    let base_candidate_lookup = build_candidate_lookup(&candidate_names);
-    let base_candidate_scores = candidate_names.iter().map(|name| {
+    let base_candidate_lookup = build_candidate_lookup(&names_b);
+    let base_candidate_scores = names_b.iter().map(|name| {
         CandidateScore::new(((1.0 / name.len() as f32) * 1000.0) as u16)
     }).collect::<Vec<CandidateScore>>();
-    query_names.par_iter().progress_count(query_names.len() as
+    names_a.par_iter().progress_count(names_a.len() as
       u64).enumerate().for_each(|(i, query_name)| {
         let mut output_path = output_dir.clone();
         let mut file_name = i.to_string();
