@@ -1,3 +1,4 @@
+#![allow(arithmetic_overflow)]
 use itertools::Itertools;
 use std::path::PathBuf;
 use std::fs::{File, create_dir_all};
@@ -5,6 +6,7 @@ use std::io::BufWriter;
 use indicatif::ParallelProgressIterator;
 use rayon::prelude::*;
 use std::io::prelude::*;
+use std::fmt;
 
 #[derive(Debug, Clone)]
 pub struct CandidateLetterInfo {
@@ -19,27 +21,43 @@ pub struct LetterInfo {
     mask: u16
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CandidateScore {
     matches: u16,
     increment: u16,
     used: u16,
     used_exact: u16,
     partial_jw: u16,
-    last_match_letter_index: u16,
-    transposition_count: u8
+    match_order: [u8; 16]
+}
+impl fmt::Debug for CandidateScore {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("CandidateScore")
+         .field("matches", &self.matches)
+         .field("increment", &self.increment)
+         .field("used", &format!("{:b}", &self.used))
+         .field("used_exact", &format!("{:b}", &self.used_exact))
+         .field("match_order", &format!("{:?}", &self.match_order))
+         .finish()
+    }
 }
 
 impl CandidateScore {
     pub fn new(increment: u16) -> CandidateScore{
-        CandidateScore { matches: 0, used_exact: 0, partial_jw: 0, used: 0, last_match_letter_index: 0, transposition_count: 0, increment }
+        CandidateScore { matches: 0, used_exact: 0, partial_jw: 0, used: 0, match_order: [u8::max_value(); 16], increment}
     }
 
     #[inline]
     pub fn calculate_jaro_winkler(&self) -> f32 {
-        let jaro_partial = ((self.partial_jw as f32 / 1000.0)  + 1.0 - (self.transposition_count as f32 / self.matches as f32)) / 3.0;
+        let mut order_index = self.match_order.clone();
+        order_index.sort();
+        let transpositions = (0..self.matches).filter(|&i| {
+            order_index.iter().position(|&x| x ==  self.match_order[i as usize]).unwrap() != i as usize
+        }).count();
+        let jaro_partial = ((self.partial_jw as f32 / 1000.0)  + 1.0 - ((transpositions as f32/ 2.0) / self.matches as f32)) / 3.0;
         let l = (self.used_exact & 0b1111u16).trailing_ones() as f32;
-        jaro_partial + 0.1 * l * (1.0 - jaro_partial)
+        //dbg!(l, jaro_partial, self.partial_jw, transpositions / 2, self);
+        if jaro_partial > 0.698 { jaro_partial + 0.1 * l * (1.0 - jaro_partial) } else { jaro_partial }
     }
 }
 
@@ -98,8 +116,12 @@ pub fn score_letter(candidate_score: &mut CandidateScore, query_mask: u16, candi
     candidate_score.matches += is_match_mask & 1;
     candidate_score.partial_jw += is_match_mask & candidate_score.increment;
     candidate_score.partial_jw += is_match_mask & query_increment;
-    candidate_score.transposition_count +=  (mask_result - 1 < candidate_score.last_match_letter_index) as u8;
-    candidate_score.last_match_letter_index |= mask_result;
+    if (is_match_mask & 1) != 0 { candidate_score.match_order[(candidate_score.matches - 1) as usize] = (mask_result.trailing_zeros() + 1) as u8; }
+    /*let possible_transpositions_available = (candidate_score.used & !candidate_score.transposed_letters) as u16;
+    let possible_transpositions_applied = u16::max_value() << mask_result.trailing_zeros();
+    let transposed_letters = possible_transpositions_applied & possible_transpositions_available;
+    let mark_transposed = if transposed_letters > 0 { transposed_letters & mask_result } else { 0 };
+    candidate_score.transposed_letters |= mark_transposed;*/
 }
 
 #[inline]
@@ -128,12 +150,15 @@ pub fn compare_batches(mut output_dir: PathBuf, query_names: &Vec<String>, candi
                 score_letter(candidate_score, query_mask, c_info.mask, query_index, query_increment);
              });
         }
-        candidate_scores.into_iter().enumerate().flat_map(|(i, score)| {
+        candidate_scores.into_iter().enumerate().flat_map(|(score_i, score)| {
             let jw = score.calculate_jaro_winkler();
+            if i == 9 && score_i == 59 {
+                dbg!(i, score_i, jw, score, query_name, &candidate_names[score_i]);
+            }
             if jw >= min_jaro_winkler {
-                Some((i, jw))
+                Some((score_i, jw))
             } else { None}
-        }).for_each(|(i, jw)| { writeln!(file, "{},{:.2}", i, jw).unwrap(); });
+        }).for_each(|(score_i, jw)| { writeln!(file, "{},{:.2}", score_i, jw).unwrap(); });
     });
 }
 
@@ -180,6 +205,7 @@ mod tests {
         let output_paths = read_dir(output_dir).unwrap().collect::<Vec<_>>();
         let answer_paths = read_dir(PathBuf::from("tests/answer/")).unwrap().collect::<Vec<_>>();
         assert_eq!(output_paths.len(), answer_paths.len(), "# of files differ -- output: {}, answer: {}", output_paths.len(), answer_paths.len());
+        assert_eq!(output_paths.len(), 10);
         output_paths.into_iter().zip(answer_paths).for_each(|(output_path, answer_path)| {
             let output_path = output_path.unwrap();
             let answer_path = answer_path.unwrap();
@@ -189,7 +215,7 @@ mod tests {
             let answer_results = answer_reader.deserialize().map(|rec| rec.unwrap()).collect::<Vec<ResultRec>>();
             output_results.iter().zip(answer_results).for_each(|(o_result, a_result)| {
                 assert_eq!(o_result.id, a_result.id, "file: {:?}, o_result: {:?}, a_result: {:?}", output_path, o_result, a_result);
-                assert!(o_result.jw - a_result.jw < 0.02, "file: {:?}, o_result: {:?}, a_result: {:?}", output_path, o_result, a_result);
+                assert!((o_result.jw - a_result.jw).abs() < 0.02, "file: {:?}, o_result: {:?}, a_result: {:?}", output_path, o_result, a_result);
             });
         });
 

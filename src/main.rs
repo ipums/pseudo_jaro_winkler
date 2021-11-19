@@ -26,9 +26,10 @@ fn main() {
         rec.first_name
     }).filter(|name| name.len() > 0).take(1000).collect::<Vec<String>>();
 
-    //let mut candidate_names = Vec::new();
-    //candidate_names.push("jane a k".to_owned());
-    //let query = "jake".to_owned();
+    let mut candidate_names = Vec::new();
+    candidate_names.push("isabella e".to_owned());
+    let mut query_names = Vec::new();
+    query_names.push("nellie".to_owned());
     let start = Instant::now();
     compare_batches(PathBuf::from("./tests/output/"), &query_names, &candidate_names, 0.8);
     let elapsed = start.elapsed();

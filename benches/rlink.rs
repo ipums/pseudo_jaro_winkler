@@ -27,7 +27,7 @@ fn bench_compare(c: &mut Criterion) {
         rec.first_name
     }).filter(|name| name.len() > 0).take(100000).collect::<Vec<String>>();
     c.bench_function("compare_batches", |b| b.iter(|| {
-        compare_batches(PathBuf::from("./tests/output/"), black_box(&query_names), black_box(&candidate_names));
+        compare_batches(PathBuf::from("./tests/output/"), black_box(&query_names), black_box(&candidate_names), 0.8);
     }));
 }
 
