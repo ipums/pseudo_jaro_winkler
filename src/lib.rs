@@ -158,7 +158,7 @@ pub fn psuedo_jaro_winkler(names_a: &Vec<String>, names_b: &Vec<String>, mut out
 
 #[cfg(test)]
 mod tests {
-    use crate::compare_batches;
+    use crate::psuedo_jaro_winkler;
     use serde::{Serialize, Deserialize};
     use std::path::PathBuf;
     use std::fs::{read_dir, remove_dir_all};
@@ -195,7 +195,7 @@ mod tests {
         }).take(100000).collect::<Vec<String>>();
         let output_dir = PathBuf::from("./tests/output/");
         remove_dir_all(output_dir.clone()).ok();
-        compare_batches(output_dir.clone(), &query_names, &candidate_names, 0.0);
+        psuedo_jaro_winkler(&query_names, &candidate_names, output_dir.clone(), 0.0);
         let output_paths = read_dir(output_dir.clone()).unwrap().collect::<Vec<_>>();
         let answer_paths = read_dir(PathBuf::from("tests/answer/")).unwrap().collect::<Vec<_>>();
         assert_eq!(output_paths.len(), answer_paths.len(), "# of files differ -- output: {}, answer: {}", output_paths.len(), answer_paths.len());
@@ -207,15 +207,6 @@ mod tests {
             let mut answer_reader = csv::ReaderBuilder::new().has_headers(false).from_path(answer_path.path()).unwrap();
             let output_results = output_reader.deserialize().map(|rec| rec.unwrap()).collect::<Vec<ResultRec>>();
             let answer_results = answer_reader.deserialize().map(|rec| rec.unwrap()).collect::<Vec<ResultRec>>();
-            /*output_results.iter().zip(answer_results).for_each(|(o_result, a_result)| {
-                assert_eq!(o_result.id, a_result.id, "file: {:?}, o_result: {:?}, a_result: {:?}", output_path, o_result, a_result);
-                total_off += (o_result.jw -a_result.jw).abs();
-                total += 1;
-                //assert!((o_result.jw - a_result.jw).abs() < 0.02, "file: {:?}, o_result: {:?}, a_result: {:?}", output_path, o_result, a_result);
-            });*/
-            /*output_results.iter().zip(answer_results.iter()).filter(|(_, a_result)| a_result.jw > 0.7)
-                .filter(|(o_result, a_result)| { (o_result.jw -a_result.jw).abs() as f64 > 0.08 })
-                .for_each(|(o, a)| { dbg!(&output_path, o, a); } );*/
             output_results.iter().zip(answer_results.iter()).filter(|(_, a_result)| a_result.jw > 0.7).map(|(o_result, a_result)| { (o_result.jw -a_result.jw).abs() as f64 }).collect::<Vec<f64>>()
         }).collect::<Vec<f64>>();
         let mean_error: f64 = mean(errors.as_slice());

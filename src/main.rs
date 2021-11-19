@@ -1,4 +1,4 @@
-use rlink::compare_batches;
+use rlink::psuedo_jaro_winkler;
 use std::{
     fs::File,
     path::PathBuf,
@@ -39,7 +39,7 @@ fn main() {
 
     let output_dir = cli_matches.value_of("output_dir").unwrap();
     let start = Instant::now();
-    compare_batches(PathBuf::from(output_dir), &names_a, &names_b, 0.8);
+    psuedo_jaro_winkler(&names_a, &names_b, PathBuf::from(output_dir), 0.8);
     let elapsed = start.elapsed();
     println!("{} ms", elapsed.as_millis());
 }
