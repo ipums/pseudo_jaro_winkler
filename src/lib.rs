@@ -145,10 +145,6 @@ pub fn compare_batches(mut output_dir: PathBuf, query_names: &Vec<String>, candi
         }
         candidate_scores.into_iter().enumerate().flat_map(|(score_i, score)| {
             let jw = score.calculate_jaro_winkler();
-            /*if i == 9 && score_i == 10007 {
-                dbg!(i, score_i, jw, &score, query_name, &candidate_names[score_i]);
-                dbg!(i, score_i, jw, &score, query_name, &candidate_names[score_i]);
-            }*/
             if jw >= min_jaro_winkler {
                 Some((score_i, jw))
             } else { None}

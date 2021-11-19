@@ -4,3 +4,5 @@
 output.csv
 __pycache__
 tests/output
+.python-version
+.vscode

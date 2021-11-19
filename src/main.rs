@@ -24,7 +24,7 @@ fn main() {
     let query_names = csv::ReaderBuilder::new().has_headers(false).from_path("./tests/input/prepped_df_b.csv").unwrap().deserialize().map(|rec| {
         let rec: NameRec = rec.unwrap();
         rec.first_name
-    }).filter(|name| name.len() > 0).take(1000).collect::<Vec<String>>();
+    }).filter(|name| name.len() > 0).collect::<Vec<String>>();
 
     /*let mut candidate_names = Vec::new();
     candidate_names.push("isabella e".to_owned());
