@@ -1,3 +1,8 @@
+// This file is part of the Minnesota Population Center's rlink.
+// For copyright and licensing information, see the NOTICE and LICENSE files
+// in this project's top-level directory, and also on-line at:
+//   https://github.com/mnpopcenter/rlink
+
 //! Creates fast psuedo jaro winkler scores between two vectors of strings.
 
 #![allow(arithmetic_overflow)]

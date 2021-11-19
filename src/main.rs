@@ -1,3 +1,8 @@
+// This file is part of rlink.
+// For copyright and licensing information, see the NOTICE and LICENSE files
+// in this project's top-level directory, and also on-line at:
+//   https://github.com/ipums/rlink
+
 use rlink::psuedo_jaro_winkler;
 use std::{
     fs::File,

@@ -45,3 +45,9 @@ It then keeps track of a score for each match and updates that score letter by l
 Additionally, all comparisons are done using bitwise operations.
 
 I plan on writing a blog post in the near future to explain more about the algorithm.
+
+## Contributing
+
+We greatly appreciate bug reports, suggestions or pull requests. They can be submitted via github.
+
+Before contributing, please be sure to read the Contributing Guidelines and the Code of Conduct.
