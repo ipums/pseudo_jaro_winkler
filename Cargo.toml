@@ -17,6 +17,7 @@ csv = "1.1"
 strsim = "0.10.0"
 rayon = "*"
 indicatif = { version = "*", features = ["rayon"] }
+statistical = "*"
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }

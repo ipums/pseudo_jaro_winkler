@@ -3,3 +3,4 @@
 /data
 output.csv
 __pycache__
+tests/output
