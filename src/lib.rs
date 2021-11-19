@@ -51,7 +51,7 @@ impl CandidateScore {
 
     #[inline]
     pub fn calculate_jaro_winkler(&self) -> f32 {
-        let transpositions = if self.transposition_count as u16 > self.matches as u16 / 2 { self.transposition_count - 1 } else { self.transposition_count };
+        let transpositions = if self.transposition_count > self.matches / 2 { self.transposition_count - 1 } else { self.transposition_count };
         let jaro_partial = ((self.partial_jw as f32 / 1000.0)  + 1.0 - (transpositions as f32 / self.matches as f32)) / 3.0;
         let l = (self.used_exact & 0b1111u16).trailing_ones() as f32;
         jaro_partial + 0.1 * l * (1.0 - jaro_partial)
@@ -195,9 +195,9 @@ mod tests {
             rec.first_name
         }).take(100000).collect::<Vec<String>>();
         let output_dir = PathBuf::from("./tests/output/");
-        remove_dir_all(output_dir.clone()).unwrap();
+        remove_dir_all(output_dir.clone()).ok();
         compare_batches(output_dir.clone(), &query_names, &candidate_names, 0.0);
-        let output_paths = read_dir(output_dir).unwrap().collect::<Vec<_>>();
+        let output_paths = read_dir(output_dir.clone()).unwrap().collect::<Vec<_>>();
         let answer_paths = read_dir(PathBuf::from("tests/answer/")).unwrap().collect::<Vec<_>>();
         assert_eq!(output_paths.len(), answer_paths.len(), "# of files differ -- output: {}, answer: {}", output_paths.len(), answer_paths.len());
         assert_eq!(output_paths.len(), 10);
@@ -226,5 +226,6 @@ mod tests {
         assert!(std_dev < 0.01);
         let errors_over_two_points_off = errors.iter().filter(|&&e| e > 0.02).count() as f32 / errors.len() as f32;
         assert!(errors_over_two_points_off < 0.02);
+        remove_dir_all(output_dir.clone()).unwrap();
     }
 }
