@@ -6,3 +6,4 @@ __pycache__
 tests/output
 .python-version
 .vscode
+*output

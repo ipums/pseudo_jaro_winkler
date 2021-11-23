@@ -246,6 +246,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a357d28ed41a50f9c765dbfe56cbc04a64e53e5fc58ba79fbc34c10ef3df831f"
 
 [[package]]
+name = "float_extras"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b22b70f8649ea2315955f1a36d964b0e4da482dfaa5f0d04df0d1fb7c338ab7a"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "format-bytes"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -689,6 +698,7 @@ dependencies = [
  "criterion",
  "csv",
  "eddie",
+ "float_extras",
  "format-bytes",
  "indicatif",
  "itertools",
