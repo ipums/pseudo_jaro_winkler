@@ -38,7 +38,7 @@ This library uses rayon, which by default uses as many threads as your OS has av
 The algorithm's performance was tested by comparing 500 names from 1880 in the `input/file_a_small.txt` file to the ~86k names in the `input/file_b_small.txt`. I tested the performance in multiple libraries: 
 - [batch jaro winkler](https://github.com/dbousque/batch_jaro_winkler)
   - One 'raw' implmentation which ignores duplicate names.
-	- One 'lookup' implementation which looks up the ids of all the names.
+  - One 'lookup' implementation which looks up the ids of all the names.
 - [strsim](https://github.com/dguo/strsim-rs)
 - [eddie](https://docs.rs/eddie/0.4.2/eddie/)
 - [jellyfish](https://github.com/jamesturk/jellyfish)
