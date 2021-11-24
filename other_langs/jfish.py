@@ -1,3 +1,8 @@
+# This file is part of the IPUMS's psuedo_jaro_winkler.
+# For copyright and licensing information, see the NOTICE and LICENSE files
+# in this project's top-level directory, and also on-line at:
+#   https://github.com/mnpopcenter/psuedo_jaro_winkler
+
 import pandas as pd
 import jellyfish
 import numpy as np

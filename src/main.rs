@@ -1,9 +1,9 @@
-// This file is part of rlink.
+// This file is part of the IPUMS's psuedo_jaro_winkler.
 // For copyright and licensing information, see the NOTICE and LICENSE files
 // in this project's top-level directory, and also on-line at:
-//   https://github.com/ipums/rlink
+//   https://github.com/ipums/psuedo_jaro_winkler
 
-use rlink::*;
+use psuedo_jaro_winkler::*;
 use std::{
     fs::File,
     path::PathBuf,
@@ -13,7 +13,7 @@ use std::{
 use clap::{Arg, App};
 
 fn main() {
-    let cli_matches = App::new("Rlink")
+    let cli_matches = App::new("psuedo_jaro_winkler")
         .version("0.1")
         .author("Jacob Wellington <jakew@umn.edu>")
         .about("Creates very fast jaro winkler scores between two datasets.")
