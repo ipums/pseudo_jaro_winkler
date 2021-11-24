@@ -1,9 +1,9 @@
-// This file is part of the IPUMS's psuedo_jaro_winkler.
+// This file is part of the IPUMS's pseudo_jaro_winkler.
 // For copyright and licensing information, see the NOTICE and LICENSE files
 // in this project's top-level directory, and also on-line at:
-//   https://github.com/ipums/psuedo_jaro_winkler
+//   https://github.com/ipums/pseudo_jaro_winkler
 
-use psuedo_jaro_winkler::*;
+use pseudo_jaro_winkler::*;
 use std::{
     fs::File,
     path::PathBuf,
@@ -13,7 +13,7 @@ use std::{
 use clap::{Arg, App};
 
 fn main() {
-    let cli_matches = App::new("psuedo_jaro_winkler")
+    let cli_matches = App::new("pseudo_jaro_winkler")
         .version("0.1")
         .author("Jacob Wellington <jakew@umn.edu>")
         .about("Creates very fast jaro winkler scores between two datasets.")
@@ -44,7 +44,7 @@ fn main() {
 
     let output_dir = cli_matches.value_of("output_dir").unwrap();
     let start = Instant::now();
-    psuedo_jaro_winkler(&names_a, &names_b, PathBuf::from(output_dir), 0.8);
+    pseudo_jaro_winkler(&names_a, &names_b, PathBuf::from(output_dir), 0.8);
     let elapsed = start.elapsed();
     println!("{} ms", elapsed.as_millis());
 }

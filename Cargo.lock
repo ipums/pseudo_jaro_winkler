@@ -519,7 +519,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "psuedo_jaro_winkler"
+name = "pseudo_jaro_winkler"
 version = "0.1.0"
 dependencies = [
  "bincode",

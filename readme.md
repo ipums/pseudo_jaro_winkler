@@ -1,29 +1,29 @@
-# Psuedo Jaro Winkler
+# Pseudo Jaro Winkler
 
 ## Overview
 
-Psuedo Jaro Winkler is a library used for creating very fast (almost) jaro winkler scores. It compares two datasets and writes out the indices of the matches above a specific threshold.
+Pseudo Jaro Winkler is a library used for creating very fast (almost) jaro winkler scores. It compares two datasets and writes out the indices of the matches above a specific threshold.
 
 This library was developed primarily for matching historical US names, but could have other uses as well. All tests were done using names from the 1880 US census.
 
 ## How to use at the command line
 
-First build `psuedo_jaro_winkler` using cargo:
+First build `pseudo_jaro_winkler` using cargo:
 
 ```
 cargo build --release
 ```
 
-Then you can call `./target/release/psuedo_jaro_winkler input/file_a.txt input/file_b.txt output`. 
+Then you can call `./target/release/pseudo_jaro_winkler input/file_a.txt input/file_b.txt output`. 
 Use the `--help` flag for more information on the arguments.
 
 
 ## How to use as library
 
-There is currently just one function availabile: `psuedo_jaro_winkler`. You can call it like this:
+There is currently just one function availabile: `pseudo_jaro_winkler`. You can call it like this:
 
 ```
-psuedo_jaro_winkler(PathBuf::from("output_dir"), names_a, names_b, 0.8)
+pseudo_jaro_winkler(PathBuf::from("output_dir"), names_a, names_b, 0.8)
 ```
 
 This will compare all the strings in `names_a` to all the strings in `names_b`.
@@ -47,9 +47,9 @@ The `strsim` and `eddie` implementations are in the `lib.rs` file and the `batch
 
 I ran the tests using an Ubunut wsl2 instance on my Windows desktop which runs an Intel Core i7-6700K CPU at 4.00GHz. All tests were using only 1 core.
 
-| program               | runtime (seconds) | ratio to `psuedo_jaro_winkler` |
+| program               | runtime (seconds) | ratio to `pseudo_jaro_winkler` |
 | --------------------- | ----------------- | ------------------------------ |
-| `psuedo_jaro_winkler`	| 0.125             |	1                              |
+| `pseudo_jaro_winkler`	| 0.125             |	1                              |
 | eddie               	| 5.584             |	44.672                         |
 | strsim	              | 6.598             |	52.784                         |
 | jellyfish	            | 385.663           |	3085.304                       |

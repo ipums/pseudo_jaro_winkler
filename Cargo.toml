@@ -1,5 +1,5 @@
 [package]
-name = "psuedo_jaro_winkler"
+name = "pseudo_jaro_winkler"
 version = "0.1.0"
 authors = ["Jacob Wellington <jakew@umn.edu>"]
 edition = "2018"
@@ -25,7 +25,7 @@ float_extras = "0.1.6"
 criterion = { version = "0.3", features = ["html_reports"] }
 
 [[bench]]
-name = "psuedo_jaro_winkler"
+name = "pseudo_jaro_winkler"
 harness = false
 
 [profile.test]

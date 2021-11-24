@@ -1,5 +1,5 @@
-psuedo_jaro_winkler
-https://github.com/ipums/psuedo_jaro_winkler
+pseudo_jaro_winkler
+https://github.com/ipums/pseudo_jaro_winkler
 
 Copyright 2021 Regents of the University of Minnesota
 
