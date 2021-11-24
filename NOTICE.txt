@@ -4,7 +4,7 @@ https://github.com/ipums/psuedo_jaro_winkler
 Copyright 2021 Regents of the University of Minnesota
 
 Contributors:
-  Jacob Wellington, Minnesota Population Center, University of Minnesota
+  Jacob Wellington, IPUMS, University of Minnesota
 
 This project is licensed under the Mozilla Public License, version 2.0 (the
 "License"). A copy of the License is in the project file "LICENSE.txt",
