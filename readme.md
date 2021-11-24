@@ -20,7 +20,7 @@ Use the `--help` flag for more information on the arguments.
 
 ## How to use as library
 
-There is currently just one function availabile: `pseudo_jaro_winkler`. You can call it like this:
+There is currently just one function available: `pseudo_jaro_winkler`. You can call it like this:
 
 ```
 pseudo_jaro_winkler(PathBuf::from("output_dir"), names_a, names_b, 0.8)
@@ -37,8 +37,8 @@ This library uses rayon, which by default uses as many threads as your OS has av
 
 The algorithm's performance was tested by comparing 500 names from 1880 in the `input/file_a_small.txt` file to the ~86k names in the `input/file_b_small.txt`. I tested the performance in multiple libraries: 
 - [batch jaro winkler](https://github.com/dbousque/batch_jaro_winkler)
-  - One 'raw' implmentation which ignores duplicate names.
-	- One 'lookup' implementation which looks up the ids of all the names.
+  + One 'raw' implementation which ignores duplicate names.
+	+ One 'lookup' implementation which looks up the ids of all the names.
 - [strsim](https://github.com/dguo/strsim-rs)
 - [eddie](https://docs.rs/eddie/0.4.2/eddie/)
 - [jellyfish](https://github.com/jamesturk/jellyfish)
@@ -59,7 +59,7 @@ I ran the tests using an Ubunut wsl2 instance on my Windows desktop which runs a
 
 ## Differences to true Jaro Winkler
 
-Transpositions are approximated, and in some cases are over counted. This usually happens whenever characters at the beginning and end of a string are swapped, for example "abcd" and "dbca". I'm currently working on ways to improve the accuracy of the algorithm without comprimising on performance.
+Transpositions are approximated, and in some cases are over counted. This usually happens whenever characters at the beginning and end of a string are swapped, for example "abcd" and "dbca". I'm currently working on ways to improve the accuracy of the algorithm without compromising on performance.
 
 ## How does it work
 It is inspired by the [batch jaro winkler](https://github.com/dbousque/batch_jaro_winkler) library, and builds a lookup table of words by letter.
