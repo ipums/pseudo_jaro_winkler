@@ -137,7 +137,6 @@ pub fn pseudo_jaro_winkler(names_a: &Vec<String>, names_b: &Vec<String>, mut out
         (i, lookup_a_by_name[name].clone())
     }).collect::<HashMap<_, _>>();
 
-    println!("{}", names_b.len());
     let lookup_b_by_name = names_b.iter().enumerate().fold(HashMap::new(), |mut lookup, (i, name)|  { 
         let entry = lookup.entry(name).or_insert(Vec::new());
         entry.push(i);
@@ -149,7 +148,6 @@ pub fn pseudo_jaro_winkler(names_a: &Vec<String>, names_b: &Vec<String>, mut out
     let lookup_b_by_new_id = names_b.iter().enumerate().map(|(i, name)| {
         (i, lookup_b_by_name[name].clone())
     }).collect::<HashMap<_, _>>();
-    println!("{}", names_b.len());
 
     create_dir_all(&mut output_dir).unwrap();
     let base_candidate_lookup = build_candidate_lookup(&names_b);
