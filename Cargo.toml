@@ -20,6 +20,9 @@ indicatif = { version = "*", features = ["rayon"] }
 statistical = "*"
 clap = "2.33.3"
 float_extras = "0.1.6"
+parquet="10.0.0"
+polars={ version="0.20.0", features=["parquet", "simd", "sort_multiple"] }
+
 
 [dev-dependencies]
 criterion = { version = "0.3", features = ["html_reports"] }
@@ -31,3 +34,6 @@ harness = false
 [profile.test]
 opt-level=3
 overflow-checks = false
+
+[profile.release]
+debug = 1
