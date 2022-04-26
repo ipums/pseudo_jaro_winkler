@@ -23,12 +23,6 @@ struct CandidateLetterInfo {
     mask: u16
 }
 
-#[derive(Debug, Clone)]
-struct LetterInfo {
-    len: usize,
-    mask: u16
-}
-
 #[derive(Clone)]
 struct CandidateScore {
     matches: u8,

@@ -3,56 +3,70 @@
 // in this project's top-level directory, and also on-line at:
 //   https://github.com/ipums/pseudo_jaro_winkler
 
-use indicatif::{ProgressIterator, ParallelProgressIterator};
-use rayon::iter::IntoParallelRefIterator;
-use rayon::iter::ParallelIterator;
-use pseudo_jaro_winkler::*;
 use std::{
-    fs::File,
     fs::read_dir,
+    fs::File,
     path::PathBuf,
     path::Path,
-    io::{BufRead, BufReader},
-    time::Instant
 };
-use parquet::file::reader::{FileReader, SerializedFileReader};
-use std::sync::Arc;
-use clap::{Arg, App};
-use std::convert::TryFrom;
-use parquet::schema::types::Type;
-use parquet::record::RowAccessor;
-use rayon::prelude::*;
-use parquet::record::Row;
-use parquet::arrow::ParquetFileArrowReader;
-use parquet::arrow::ArrowReader;
 use polars::prelude::*;
+use polars::datatypes::AnyValue;
+use rayon::prelude::*;
+use indicatif::ParallelProgressIterator;
 
-pub fn make_vec() -> Vec<Row> {
-    let layout = std::alloc::Layout::array::<Row>(220_000).unwrap();
-    // I copied the following unsafe code from Stack Overflow without understanding
-    // it. I was advised not to do this, but I didn't listen. It's my fault.
-    unsafe {
-        Vec::from_raw_parts(
-            std::alloc::alloc_zeroed(layout) as *mut _,
-            220_000,
-            220_000,
-        )
-    }
+#[derive(Debug, Clone)]
+struct BlockInfo {
+    sex: i64,
+    bpl: i32,
+    replaced_birthyr: i64,
+    start: u32,
+    len: usize
+}
+
+#[derive(Debug, Clone)]
+struct BlockedFrame {
+    df: DataFrame,
+    blocks: Vec<BlockInfo>
 }
 
 fn main() {
     let paths = read_dir("./input/blocks_a.parquet").unwrap().collect::<Vec<_>>();
     let paths = paths.into_iter().map(|p| p.unwrap().path()).filter(|p| p.to_str().unwrap().ends_with(".parquet")).collect::<Vec<PathBuf>>();
-    let path = paths.first().unwrap();
+    //let path = paths.first().unwrap();
     let requested_fields = vec!["histid", "sex", "replaced_birthyr", "bpl_orig", "namefrst_std", "namelast_clean"];
+    let block_fields = vec!["sex", "bpl_orig", "replaced_birthyr"];
+    
 
-    let mut rows = paths.iter().map(|p| {
+    println!("Reading df a...");
+    let rows = paths[..1].par_iter().progress_count(paths.len() as u64).map(|p| {
         let file = File::open(p.as_path()).unwrap();
-        ParquetReader::new(file).with_columns(Some(requested_fields.iter().map(|s| s.to_string()).collect::<Vec<_>>())).finish().unwrap()
-    }).reduce(|df1, df2| df1.vstack(&df2).unwrap()).unwrap();
-    rows.sort_in_place(vec!["sex", "bpl_orig", "replaced_birthyr"], vec![true, true, true]);
-    std::thread::sleep(std::time::Duration::from_secs(10));
-    println!("{:?}", rows);
+        let mut df = ParquetReader::new(file).with_columns(Some(requested_fields.iter().map(|s| s.to_string()).collect::<Vec<_>>())).finish().unwrap();
+        df.sort_in_place(vec!["sex", "bpl_orig", "replaced_birthyr"], vec![true, true, true]);
+        let groups = df.groupby(&block_fields).unwrap().take_groups().into_idx();
+        let blocks = groups.into_iter().take(1).map(|(first, all)|{ 
+            let labels = df.select(&block_fields).unwrap().get(first as usize).unwrap();
+            let sex = match labels[0] { AnyValue::Int64(n) => n, _ => panic!("Couldn't get value") };
+            let bpl = match labels[0] { AnyValue::Int32(n) => n, _ => panic!("Couldn't get value") };
+            let replaced_birthyr = match labels[0] { AnyValue::Int64(n) => n, _ => panic!("Couldn't get value") };
+            let start = first;
+            let len = all.len();
+            BlockInfo { sex, bpl, replaced_birthyr, start, len }
+        }).collect::<Vec<_>>();
+        BlockedFrame { df, blocks }
+    }).collect::<Vec<_>>();
+    //}).reduce(|df1, df2| df1.vstack(&df2).unwrap()).unwrap
+    //
+    //
+    //
+    //
+    //
+    //
+    //
+    //();
+    println!("Rechunking a...");
+    //rows.sort_in_place(vec!["sex", "bpl_orig", "replaced_birthyr"], vec![true, true, true]);
+    println!("Sorting df a...");
+    //println!("{:?}", rows);
     /*
     let sfr = SerializedFileReader::try_from(path.as_path()).unwrap();
     let schema = sfr.metadata().file_metadata().schema();

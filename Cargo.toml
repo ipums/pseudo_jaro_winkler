@@ -20,8 +20,8 @@ indicatif = { version = "*", features = ["rayon"] }
 statistical = "*"
 clap = "2.33.3"
 float_extras = "0.1.6"
-parquet="10.0.0"
-polars={ version="0.20.0", features=["parquet", "simd", "sort_multiple"] }
+#parquet="10.0.0"
+polars={ version="0.20.0", features=["parquet", "simd", "sort_multiple", "lazy"] }
 
 
 [dev-dependencies]
