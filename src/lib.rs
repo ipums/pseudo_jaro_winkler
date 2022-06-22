@@ -16,26 +16,36 @@ use rayon::prelude::*;
 use std::io::prelude::*;
 use std::fmt;
 
+/// Information on a single letter for a candidate match.
 #[derive(Debug, Clone)]
 struct CandidateLetterInfo {
+    /// Index of the candidate within the array of unique names
     name_index: usize,
+    /// Length of the original candidate
     len: usize,
+    /// Bitmask for the letter indicating its position in the candidate name
     mask: u16
 }
 
-#[derive(Debug, Clone)]
-struct LetterInfo {
-    len: usize,
-    mask: u16
-}
-
+/// A score card for a single candidate.
+/// These store intermediate information on the jaro winkler score for a single candidate.
+/// The intermediate information is useful when having compared some but not all letters for the
+/// candidate. Once all letters are compared, then this can be used to calculate a jaro winkler
+/// score for that candidate.
 #[derive(Clone)]
 struct CandidateScore {
+    /// Tally of the number of matches found
     matches: u8,
+    /// A bitmask of the letters that have already been matched 
     used: u16,
+    /// A bitmask of the letters that have already been matched in their exact position
     used_exact: u16,
+    /// A precomputed value for use in quickly calculating jaro winklers. It is multiplied by 1024
+    /// in order to be stored into a u16 even though it is a fraction.
     len_partial: u16,
+    /// The index of the last letter that has matched in the word.
     last_match_letter_index: u16,
+    /// The number of transpositions found.
     transposition_count: u8,
 }
 impl fmt::Debug for CandidateScore {
@@ -55,6 +65,8 @@ impl CandidateScore {
         CandidateScore { matches: 0, used_exact: 0, used: 0, transposition_count: 0, last_match_letter_index: 0, len_partial: ((1.0 / len as f64) * 1024.0) as u16 }
     }
 
+    /// Calculates the jaro winkler for a candidate score.
+    /// This method should only be used once all the scoring is complete.
     #[inline]
     fn calculate_jaro_winkler(&self, query_partial: u16) -> f32 {
         let transpositions = if self.transposition_count > self.matches / 2 { self.transposition_count - 1 } else { self.transposition_count };
@@ -65,6 +77,18 @@ impl CandidateScore {
     }
 }
 
+/// Takes in a string and converts it to a list of bitmasks, one for each character in the string.
+/// The bitmasks are in the form of (u8, [u16; 16]), where the u8 represents the character which
+/// must be either [a-z] or a "`" character (used to represent a space but is a contigious ascii
+/// character number with respect to [a-z]). We use a u8 to save memory and map that
+/// alphabet onto the all the possible u8 numbers. The [u16; 16] is a list of bitmaps, where each
+/// one represents a bitmask that you would use depending on the length of the other string that
+/// you are comparing it against, setting the mask equal to 1 even if a character doesn't appear in
+/// that location as long as it is within the minimum distance to be considered a match.
+///
+/// # Arguments
+/// 
+/// * `query` - the string to turn into a list of bitmasks
 fn maskify(query: &String) -> Vec<(u8, [u16; 16])> {
     let len = query.len();
     let min_match_dist = if len > 3 { len / 2 - 1 } else { 0 };
@@ -89,6 +113,11 @@ fn maskify(query: &String) -> Vec<(u8, [u16; 16])> {
     }).collect()
 }
 
+/// Transforms a vector of names into a lookup table.
+/// The lookup table is represented by a vector of vectors. The outer vector always has 27 elements
+/// in it, each one corresponding to the letters [`-z], where '`' is the 0th item, 'a' is 1st item, 
+/// 'b' is the 2nd item and so on. The inner vector is a list of all the candidates that contain
+/// that letter. 
 fn build_candidate_lookup(names: &Vec<String>) -> Vec<Vec<CandidateLetterInfo>> {
     let mut letter_lookup: Vec<Vec<CandidateLetterInfo>> = Vec::new();
     for letter in '`'..'{' {
@@ -108,6 +137,18 @@ fn build_candidate_lookup(names: &Vec<String>) -> Vec<Vec<CandidateLetterInfo>> 
     letter_lookup
 }
 
+/// Updates the score for a single candidate given a query mask, candidate mask, and query index.
+///
+/// # Arguments
+///
+/// * `candidate_score`: the score card to update for a given candidate
+/// * `query_mask`: the mask of the query which represents where possible matches for the letter
+///    are in the query. This mask must take into account the lengths of both the strings and have
+///    '1's for all possible matches.
+/// * `candidate_mask`: the mask of the candidate which represents the location of any occurences
+///    of the charcter
+/// * `query_index`: The index of the letter that this is for. '`' corresponds to 0, 'a' to 1, and
+///    so on.
 #[inline]
 fn score_letter(candidate_score: &mut CandidateScore, query_mask: u16, candidate_mask: u16, query_index: usize) {
     let whole_mask_result = query_mask & candidate_mask; // Get raw matches
@@ -122,7 +163,17 @@ fn score_letter(candidate_score: &mut CandidateScore, query_mask: u16, candidate
     candidate_score.last_match_letter_index |= mask_result;
 }
 
-/// Compares two vectors of strings using the pseudo jaro winkler algorithm.
+/// Compares two vectors of strings using the pseudo jaro winkler algorithm. It calculates the
+/// matches in parallel and will write all matches to the output directory with one file per record
+/// in names_a and all of its associated matches in names_b.
+///
+/// # Arguments
+///
+/// * `names_a`: List of names in the first dataset.
+/// * `names_b`: List of names in the second dataset.
+/// * `output_dir`: The location of the output directory to write matches to.
+/// * `min_jaro_winkler`: The minimum jaro winkler threshold for writing an output match. Use 0.0
+///    to write all matches.
 #[inline]
 pub fn pseudo_jaro_winkler(names_a: &Vec<String>, names_b: &Vec<String>, mut output_dir: PathBuf, min_jaro_winkler: f32) {
     let lookup_a_by_name = names_a.iter().enumerate().fold(HashMap::new(), |mut lookup, (i, name)|  { 
@@ -191,6 +242,8 @@ pub fn pseudo_jaro_winkler(names_a: &Vec<String>, names_b: &Vec<String>, mut out
     });
 }
 
+
+/// Computing jaro winkler using the strsim library for testing.
 #[inline]
 pub fn strsim_jaro_winkler(names_a: &Vec<String>, names_b: &Vec<String>, mut output_dir: PathBuf, min_jaro_winkler: f32) {
     create_dir_all(&mut output_dir).unwrap();
@@ -210,6 +263,7 @@ pub fn strsim_jaro_winkler(names_a: &Vec<String>, names_b: &Vec<String>, mut out
     });
 }
 
+/// Computing jaro winkler using the eddie library for testing.
 #[inline]
 pub fn eddie_jaro_winkler(names_a: &Vec<String>, names_b: &Vec<String>, mut output_dir: PathBuf, min_jaro_winkler: f32) {
     create_dir_all(&mut output_dir).unwrap();
@@ -257,6 +311,13 @@ mod tests {
         jw: f64
     }
 
+    /// This is a test that makes sure that the average error from calculating psuedo jaro winklers
+    /// does not differ too far from real jaro winkler scores. 
+    ///
+    /// It constrains the average error of comparing 10 names to 100,000 names chosen 
+    /// randomly from 1880 to be no greater than 0.002 with a standard deviation of no greater 
+    /// than 0.01. It also makes sure that errors which are greater than 0.02 are less 
+    /// than 2% of all the winklers calculated.
     #[test]
     fn test_batch() {
         let query_names = csv::ReaderBuilder::new().has_headers(false).from_path("./tests/input/prepped_df_b.csv").unwrap().deserialize().map(|rec| {
