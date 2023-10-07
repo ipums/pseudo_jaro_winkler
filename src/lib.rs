@@ -152,13 +152,11 @@ fn build_candidate_lookup(names: &Vec<String>) -> Vec<Vec<CandidateLetterInfo>> 
 #[inline]
 fn score_letter(candidate_score: &mut CandidateScore, query_mask: u16, candidate_mask: u16, query_index: usize) {
     let whole_mask_result = query_mask & candidate_mask; // Get raw matches
-    let check_used_result = (whole_mask_result | candidate_score.used) ^ candidate_score.used; // Make sure we haven't used that match before
-    let last_match_letter_index = (1 << check_used_result.trailing_zeros()) & check_used_result; // Find the first match found
-    let mask_result = check_used_result & last_match_letter_index; // Take the first match found
-    let is_match_mask = !(((mask_result >> mask_result.trailing_zeros()) & 1) - 1); // All 1s if there is a result, else all 0s
+    let check_used_result = whole_mask_result & !candidate_score.used; // Make sure we haven't used that match before
+    let mask_result = check_used_result & check_used_result.wrapping_neg(); // Take the first match (on modern cpus should be optimized to blsi)
     candidate_score.used |= mask_result;
     candidate_score.used_exact |= mask_result & (1 << query_index);
-    candidate_score.matches += (is_match_mask & 1) as u8;
+    candidate_score.matches += (mask_result != 0) as u8;
     candidate_score.transposition_count +=  (mask_result - 1 < candidate_score.last_match_letter_index) as u8;
     candidate_score.last_match_letter_index |= mask_result;
 }
